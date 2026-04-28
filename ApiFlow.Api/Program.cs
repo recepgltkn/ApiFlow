@@ -18,7 +18,7 @@ builder.Services.AddCors(options =>
 });
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
-builder.Services.AddHttpClient<DiaApiClient>();
+builder.Services.AddHttpClient<ExternalApiClient>();
 builder.Services.AddScoped<SqlServerPayloadWriter>();
 
 var app = builder.Build();
@@ -82,6 +82,20 @@ static async Task EnsureDatabaseSchemaAsync(AppDbContext dbContext)
             await command.ExecuteNonQueryAsync();
         }
 
+        if (!existingColumns.Contains("DefaultHeadersJson"))
+        {
+            using var command = connection.CreateCommand();
+            command.CommandText = "ALTER TABLE ApiProfiles ADD COLUMN DefaultHeadersJson TEXT DEFAULT NULL";
+            await command.ExecuteNonQueryAsync();
+        }
+
+        if (!existingColumns.Contains("SessionIdJsonPath"))
+        {
+            using var command = connection.CreateCommand();
+            command.CommandText = "ALTER TABLE ApiProfiles ADD COLUMN SessionIdJsonPath TEXT DEFAULT NULL";
+            await command.ExecuteNonQueryAsync();
+        }
+
         if (!await TableExistsAsync(connection, "ApiEndpoints"))
         {
             using var command = connection.CreateCommand();
@@ -90,6 +104,8 @@ static async Task EnsureDatabaseSchemaAsync(AppDbContext dbContext)
                 Key TEXT NOT NULL,
                 HttpMethod TEXT NOT NULL DEFAULT 'POST',
                 RequestBodyTemplate TEXT,
+                HeadersJson TEXT,
+                ResultJsonPath TEXT,
                 Path TEXT NOT NULL
             )";
             await command.ExecuteNonQueryAsync();
@@ -120,18 +136,20 @@ static async Task EnsureDatabaseSchemaAsync(AppDbContext dbContext)
                 command.CommandText = "ALTER TABLE ApiEndpoints ADD COLUMN RequestBodyTemplate TEXT DEFAULT NULL";
                 await command.ExecuteNonQueryAsync();
             }
-        }
 
-        if (!await dbContext.ApiEndpoints.AnyAsync())
-        {
-            dbContext.ApiEndpoints.AddRange(
-                new ApiEndpoint { Key = "stok-kartlari", HttpMethod = "POST", Path = "/api/v3/scf/json" },
-                new ApiEndpoint { Key = "cari-kartlar", HttpMethod = "POST", Path = "/api/v3/scf/json" },
-                new ApiEndpoint { Key = "satis-faturalari", HttpMethod = "POST", Path = "/api/v3/scf/json" },
-                new ApiEndpoint { Key = "satis-fatura-detaylari", HttpMethod = "POST", Path = "/api/v3/scf/json" },
-                new ApiEndpoint { Key = "stok-hareketleri", HttpMethod = "POST", Path = "/api/v3/scf/json" }
-            );
-            await dbContext.SaveChangesAsync();
+            if (!endpointColumns.Contains("HeadersJson"))
+            {
+                using var command = connection.CreateCommand();
+                command.CommandText = "ALTER TABLE ApiEndpoints ADD COLUMN HeadersJson TEXT DEFAULT NULL";
+                await command.ExecuteNonQueryAsync();
+            }
+
+            if (!endpointColumns.Contains("ResultJsonPath"))
+            {
+                using var command = connection.CreateCommand();
+                command.CommandText = "ALTER TABLE ApiEndpoints ADD COLUMN ResultJsonPath TEXT DEFAULT NULL";
+                await command.ExecuteNonQueryAsync();
+            }
         }
     }
     finally

@@ -41,16 +41,20 @@ public sealed class ApiProfilesController(AppDbContext dbContext) : ControllerBa
             return Conflict(new { message = $"'{name}' adında bir profil zaten var." });
         }
 
+        var normalizedBaseUrl = NormalizeBaseUrl(request.BaseUrl);
+
         var profile = new ApiProfile
         {
             Name = name,
             Username = request.Username.Trim(),
             Password = request.Password,
             ApiKey = request.ApiKey.Trim(),
-            LoginPath = request.LoginPath?.Trim(),
+            LoginPath = NormalizeOptional(request.LoginPath),
             LoginHttpMethod = request.LoginHttpMethod,
             LoginBodyTemplate = request.LoginBodyTemplate,
-            BaseUrl = NormalizeBaseUrl(request.BaseUrl),
+            DefaultHeadersJson = NormalizeOptional(request.DefaultHeadersJson),
+            SessionIdJsonPath = NormalizeOptional(request.SessionIdJsonPath),
+            BaseUrl = normalizedBaseUrl,
             Language = request.Language.Trim(),
             DisconnectSameUser = request.DisconnectSameUser,
             FirmaKodu = request.FirmaKodu,
@@ -79,14 +83,18 @@ public sealed class ApiProfilesController(AppDbContext dbContext) : ControllerBa
             return Conflict(new { message = $"'{name}' adında bir profil zaten var." });
         }
 
+        var normalizedBaseUrl = NormalizeBaseUrl(request.BaseUrl);
+
         profile.Name = name;
         profile.Username = request.Username.Trim();
         profile.Password = request.Password;
         profile.ApiKey = request.ApiKey.Trim();
-        profile.LoginPath = request.LoginPath?.Trim();
+        profile.LoginPath = NormalizeOptional(request.LoginPath);
         profile.LoginHttpMethod = request.LoginHttpMethod;
         profile.LoginBodyTemplate = request.LoginBodyTemplate;
-        profile.BaseUrl = NormalizeBaseUrl(request.BaseUrl);
+        profile.DefaultHeadersJson = NormalizeOptional(request.DefaultHeadersJson);
+        profile.SessionIdJsonPath = NormalizeOptional(request.SessionIdJsonPath);
+        profile.BaseUrl = normalizedBaseUrl;
         profile.Language = request.Language.Trim();
         profile.DisconnectSameUser = request.DisconnectSameUser;
         profile.FirmaKodu = request.FirmaKodu;
@@ -112,6 +120,11 @@ public sealed class ApiProfilesController(AppDbContext dbContext) : ControllerBa
         return value?.Trim().TrimEnd('/') ?? string.Empty;
     }
 
+    private static string? NormalizeOptional(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    }
+
     private static ApiProfileResponse ToResponse(ApiProfile profile)
     {
         return new ApiProfileResponse(
@@ -121,6 +134,8 @@ public sealed class ApiProfilesController(AppDbContext dbContext) : ControllerBa
             profile.LoginPath,
             profile.LoginHttpMethod,
             profile.LoginBodyTemplate,
+            profile.DefaultHeadersJson,
+            profile.SessionIdJsonPath,
             profile.Username,
             profile.Language,
             profile.Password,

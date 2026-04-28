@@ -12,8 +12,8 @@ public sealed class SqlServerPayloadWriter(IConfiguration configuration)
 
     public async Task<int> SaveAsync(
         ApiProfile profile,
-        DiaOperationInfo operation,
-        JsonElement diaResponse,
+        ApiOperationInfo operation,
+        JsonElement apiResponse,
         CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(connectionString))
@@ -21,7 +21,7 @@ public sealed class SqlServerPayloadWriter(IConfiguration configuration)
             throw new InvalidOperationException("DestinationSqlServer connection string tanımlı değil.");
         }
 
-        var rows = ExtractResultRows(diaResponse).ToArray();
+        var rows = ExtractResultRows(apiResponse, operation.ResultJsonPath).ToArray();
         await using var connection = new SqlConnection(connectionString);
         await connection.OpenAsync(cancellationToken);
         await EnsureTableAsync(connection, cancellationToken);
@@ -40,17 +40,17 @@ public sealed class SqlServerPayloadWriter(IConfiguration configuration)
                 await using var command = connection.CreateCommand();
                 command.Transaction = (SqlTransaction)transaction;
                 command.CommandText = """
-                    INSERT INTO dbo.DiaApiPayloads
-                        (ProfileId, ProfileName, OperationKey, DiaMethod, DiaKey, PayloadJson, ReceivedAt)
+                    INSERT INTO dbo.ApiPayloads
+                        (ProfileId, ProfileName, OperationKey, HttpMethod, RowKey, PayloadJson, ReceivedAt)
                     VALUES
-                        (@ProfileId, @ProfileName, @OperationKey, @DiaMethod, @DiaKey, @PayloadJson, SYSUTCDATETIME());
+                        (@ProfileId, @ProfileName, @OperationKey, @HttpMethod, @RowKey, @PayloadJson, SYSUTCDATETIME());
                     """;
 
                 command.Parameters.Add(new SqlParameter("@ProfileId", SqlDbType.Int) { Value = profile.Id });
                 command.Parameters.Add(new SqlParameter("@ProfileName", SqlDbType.NVarChar, 100) { Value = profile.Name });
                 command.Parameters.Add(new SqlParameter("@OperationKey", SqlDbType.NVarChar, 100) { Value = operation.Key });
-                command.Parameters.Add(new SqlParameter("@DiaMethod", SqlDbType.NVarChar, 150) { Value = operation.Method });
-                command.Parameters.Add(new SqlParameter("@DiaKey", SqlDbType.NVarChar, 100) { Value = GetDiaKey(row) });
+                command.Parameters.Add(new SqlParameter("@HttpMethod", SqlDbType.NVarChar, 150) { Value = operation.HttpMethod });
+                command.Parameters.Add(new SqlParameter("@RowKey", SqlDbType.NVarChar, 100) { Value = GetRowKey(row) });
                 command.Parameters.Add(new SqlParameter("@PayloadJson", SqlDbType.NVarChar, -1) { Value = row.GetRawText() });
 
                 saved += await command.ExecuteNonQueryAsync(cancellationToken);
@@ -70,44 +70,67 @@ public sealed class SqlServerPayloadWriter(IConfiguration configuration)
     {
         await using var command = connection.CreateCommand();
         command.CommandText = """
-            IF OBJECT_ID(N'dbo.DiaApiPayloads', N'U') IS NULL
+            IF OBJECT_ID(N'dbo.ApiPayloads', N'U') IS NULL
             BEGIN
-                CREATE TABLE dbo.DiaApiPayloads
+                CREATE TABLE dbo.ApiPayloads
                 (
-                    Id bigint IDENTITY(1,1) NOT NULL CONSTRAINT PK_DiaApiPayloads PRIMARY KEY,
+                    Id bigint IDENTITY(1,1) NOT NULL CONSTRAINT PK_ApiPayloads PRIMARY KEY,
                     ProfileId int NOT NULL,
                     ProfileName nvarchar(100) NOT NULL,
                     OperationKey nvarchar(100) NOT NULL,
-                    DiaMethod nvarchar(150) NOT NULL,
-                    DiaKey nvarchar(100) NULL,
+                    HttpMethod nvarchar(150) NOT NULL,
+                    RowKey nvarchar(100) NULL,
                     PayloadJson nvarchar(max) NOT NULL,
-                    ReceivedAt datetime2(3) NOT NULL CONSTRAINT DF_DiaApiPayloads_ReceivedAt DEFAULT SYSUTCDATETIME()
+                    ReceivedAt datetime2(3) NOT NULL CONSTRAINT DF_ApiPayloads_ReceivedAt DEFAULT SYSUTCDATETIME()
                 );
 
-                CREATE INDEX IX_DiaApiPayloads_Profile_Operation
-                    ON dbo.DiaApiPayloads(ProfileId, OperationKey, ReceivedAt);
+                CREATE INDEX IX_ApiPayloads_Profile_Operation
+                    ON dbo.ApiPayloads(ProfileId, OperationKey, ReceivedAt);
             END
             """;
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
-    private static IEnumerable<JsonElement> ExtractResultRows(JsonElement diaResponse)
+    private static IEnumerable<JsonElement> ExtractResultRows(JsonElement apiResponse, string? resultJsonPath)
     {
-        if (diaResponse.ValueKind == JsonValueKind.Object &&
-            diaResponse.TryGetProperty("result", out var result) &&
-            result.ValueKind == JsonValueKind.Array)
+        var result = ResolvePath(apiResponse, resultJsonPath) ?? ResolvePath(apiResponse, "result") ?? apiResponse;
+
+        if (result.ValueKind == JsonValueKind.Array)
         {
             foreach (var item in result.EnumerateArray())
             {
                 yield return item.Clone();
             }
         }
+        else if (result.ValueKind == JsonValueKind.Object)
+        {
+            yield return result.Clone();
+        }
     }
 
-    private static object GetDiaKey(JsonElement row)
+    private static JsonElement? ResolvePath(JsonElement root, string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return null;
+        }
+
+        var current = root;
+        foreach (var segment in path.Split('.', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            if (current.ValueKind != JsonValueKind.Object || !current.TryGetProperty(segment, out current))
+            {
+                return null;
+            }
+        }
+
+        return current;
+    }
+
+    private static object GetRowKey(JsonElement row)
     {
         if (row.ValueKind == JsonValueKind.Object &&
-            row.TryGetProperty("_key", out var key))
+            (row.TryGetProperty("_key", out var key) || row.TryGetProperty("id", out key)))
         {
             return key.ValueKind switch
             {

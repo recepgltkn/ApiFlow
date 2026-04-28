@@ -21,6 +21,12 @@ public sealed class ApiProfile
     [MaxLength(2000)]
     public string? LoginBodyTemplate { get; set; }
 
+    [MaxLength(4000)]
+    public string? DefaultHeadersJson { get; set; }
+
+    [MaxLength(100)]
+    public string? SessionIdJsonPath { get; set; }
+
     [MaxLength(100)]
     public required string Username { get; set; }
 

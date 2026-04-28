@@ -15,6 +15,12 @@ public sealed class ApiEndpoint
     [MaxLength(2000)]
     public string? RequestBodyTemplate { get; set; }
 
+    [MaxLength(4000)]
+    public string? HeadersJson { get; set; }
+
+    [MaxLength(100)]
+    public string? ResultJsonPath { get; set; }
+
     [Required, MaxLength(300)]
     public required string Path { get; set; }
 }

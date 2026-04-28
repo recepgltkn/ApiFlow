@@ -59,7 +59,7 @@
 
             <div class="col-md-6">
               <label class="form-label" for="loginPath">Login Endpoint</label>
-              <input id="loginPath" class="form-control" autocomplete="off" required>
+              <input id="loginPath" class="form-control" autocomplete="off" placeholder="/auth/login">
             </div>
 
             <div class="col-md-6">
@@ -80,6 +80,21 @@
             <div class="col-md-6">
               <label class="form-label" for="apiKey">API Key</label>
               <input id="apiKey" class="form-control" autocomplete="off" required>
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label" for="sessionIdJsonPath">Token JSON Yolu</label>
+              <input id="sessionIdJsonPath" class="form-control" autocomplete="off" placeholder="access_token">
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label" for="defaultHeadersJson">Varsayılan Header JSON</label>
+              <textarea id="defaultHeadersJson" class="form-control code-input" rows="2" placeholder='{"Authorization":"Bearer {{sessionId}}"}'></textarea>
+            </div>
+
+            <div class="col-12">
+              <label class="form-label" for="loginBodyTemplate">Login Body Template JSON</label>
+              <textarea id="loginBodyTemplate" class="form-control code-input" rows="4" placeholder='{"username":"{{username}}","password":"{{password}}","apiKey":"{{apiKey}}"}'></textarea>
             </div>
 
             <div class="col-md-4">
@@ -115,7 +130,57 @@
 
         <div class="panel mt-4">
           <div class="panel-header">
-            <h2>Operasyon Testi</h2>
+            <h2>Endpointler</h2>
+            <button id="newOperationButton" class="btn btn-outline-primary btn-sm" type="button">
+              <i class="bi bi-plus-lg"></i> Yeni
+            </button>
+          </div>
+          <form id="operationForm" class="row g-3">
+            <input id="operationOriginalKey" type="hidden">
+            <div class="col-md-4">
+              <label class="form-label" for="operationKey">Endpoint Anahtarı</label>
+              <input id="operationKey" class="form-control" autocomplete="off" placeholder="stok-listesi" required>
+            </div>
+            <div class="col-md-2">
+              <label class="form-label" for="operationMethod">Metot</label>
+              <select id="operationMethod" class="form-select">
+                <option>GET</option>
+                <option selected>POST</option>
+                <option>PUT</option>
+                <option>PATCH</option>
+                <option>DELETE</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label" for="operationPath">Endpoint Path</label>
+              <input id="operationPath" class="form-control" autocomplete="off" placeholder="/api/items" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label" for="operationHeadersJson">Header JSON</label>
+              <textarea id="operationHeadersJson" class="form-control code-input" rows="2" placeholder='{"x-api-key":"{{apiKey}}"}'></textarea>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label" for="operationResultJsonPath">Sonuç JSON Yolu</label>
+              <input id="operationResultJsonPath" class="form-control" autocomplete="off" placeholder="result">
+            </div>
+            <div class="col-12">
+              <label class="form-label" for="operationBodyTemplate">Body Template JSON</label>
+              <textarea id="operationBodyTemplate" class="form-control code-input" rows="4" placeholder='{"limit":{{limit}},"offset":{{offset}},"filters":{{filters}}}'></textarea>
+            </div>
+            <div class="col-12 d-flex flex-wrap gap-2">
+              <button class="btn btn-primary" type="submit">
+                <i class="bi bi-save"></i> Endpoint Kaydet
+              </button>
+              <button id="deleteOperationButton" class="btn btn-outline-danger" type="button" disabled>
+                <i class="bi bi-trash"></i> Endpoint Sil
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <div class="panel mt-4">
+          <div class="panel-header">
+            <h2>Veri Çekme Testi</h2>
           </div>
           <div class="row g-3 align-items-end">
             <div class="col-md-6">
@@ -133,6 +198,10 @@
             <div class="col-12">
               <label class="form-label" for="filters">Filters JSON</label>
               <textarea id="filters" class="form-control code-input" rows="3" placeholder='[{"field":"durum","operator":"=","value":"A"}]'></textarea>
+            </div>
+            <div class="col-12">
+              <label class="form-label" for="params">Params JSON</label>
+              <textarea id="params" class="form-control code-input" rows="3" placeholder='{"_key":123}'></textarea>
             </div>
             <div class="col-12 d-flex flex-wrap gap-2">
               <button id="runOperationButton" class="btn btn-dark" type="button" disabled>

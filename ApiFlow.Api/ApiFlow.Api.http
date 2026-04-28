@@ -19,12 +19,26 @@ Content-Type: application/json
 
 ###
 
-GET {{ApiFlow.Api_HostAddress}}/api/dia/operations
+GET {{ApiFlow.Api_HostAddress}}/api/integrations/operations
 Accept: application/json
 
 ###
 
-POST {{ApiFlow.Api_HostAddress}}/api/dia/profiles/1/operations/satis-faturalari
+POST {{ApiFlow.Api_HostAddress}}/api/integrations/operations
+Content-Type: application/json
+
+{
+  "key": "stok-listesi",
+  "httpMethod": "POST",
+  "path": "/api/items",
+  "requestBodyTemplate": "{\"limit\":{{limit}},\"offset\":{{offset}},\"filters\":{{filters}}}",
+  "headersJson": "{\"Authorization\":\"Bearer {{sessionId}}\"}",
+  "resultJsonPath": "result"
+}
+
+###
+
+POST {{ApiFlow.Api_HostAddress}}/api/integrations/profiles/1/operations/stok-listesi
 Content-Type: application/json
 
 {

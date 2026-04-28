@@ -16,6 +16,9 @@ const elements = {
   name: document.querySelector('#name'),
   baseUrl: document.querySelector('#baseUrl'),
   loginPath: document.querySelector('#loginPath'),
+  loginBodyTemplate: document.querySelector('#loginBodyTemplate'),
+  sessionIdJsonPath: document.querySelector('#sessionIdJsonPath'),
+  defaultHeadersJson: document.querySelector('#defaultHeadersJson'),
   username: document.querySelector('#username'),
   language: document.querySelector('#language'),
   password: document.querySelector('#password'),
@@ -27,10 +30,21 @@ const elements = {
   loginButton: document.querySelector('#loginButton'),
   newProfileButton: document.querySelector('#newProfileButton'),
   refreshButton: document.querySelector('#refreshButton'),
+  operationForm: document.querySelector('#operationForm'),
+  operationOriginalKey: document.querySelector('#operationOriginalKey'),
+  operationKey: document.querySelector('#operationKey'),
+  operationMethod: document.querySelector('#operationMethod'),
+  operationPath: document.querySelector('#operationPath'),
+  operationHeadersJson: document.querySelector('#operationHeadersJson'),
+  operationResultJsonPath: document.querySelector('#operationResultJsonPath'),
+  operationBodyTemplate: document.querySelector('#operationBodyTemplate'),
+  newOperationButton: document.querySelector('#newOperationButton'),
+  deleteOperationButton: document.querySelector('#deleteOperationButton'),
   operation: document.querySelector('#operation'),
   limit: document.querySelector('#limit'),
   offset: document.querySelector('#offset'),
   filters: document.querySelector('#filters'),
+  params: document.querySelector('#params'),
   forceLogin: document.querySelector('#forceLogin'),
   saveToSqlServer: document.querySelector('#saveToSqlServer'),
   runOperationButton: document.querySelector('#runOperationButton'),
@@ -45,6 +59,9 @@ function init() {
   elements.refreshButton.addEventListener('click', loadAll);
   elements.deleteButton.addEventListener('click', deleteProfile);
   elements.loginButton.addEventListener('click', loginProfile);
+  elements.operationForm.addEventListener('submit', saveOperation);
+  elements.newOperationButton.addEventListener('click', clearOperationForm);
+  elements.deleteOperationButton.addEventListener('click', deleteOperation);
   elements.runOperationButton.addEventListener('click', runOperation);
   loadAll();
 }
@@ -53,13 +70,16 @@ async function loadAll() {
   try {
     const [profiles, operations] = await Promise.all([
       api('/api/profiles'),
-      api('/api/dia/operations')
+      api('/api/integrations/operations')
     ]);
 
     state.profiles = profiles;
     state.operations = operations;
     renderProfiles();
     renderOperations();
+    if (!elements.operationOriginalKey.value && state.operations.length > 0) {
+      selectOperation(state.operations[0].key);
+    }
 
     if (state.selectedProfileId) {
       const selected = state.profiles.find(profile => profile.id === state.selectedProfileId);
@@ -106,9 +126,36 @@ function renderOperations() {
   for (const operation of state.operations) {
     const option = document.createElement('option');
     option.value = operation.key;
-    option.textContent = `${operation.key} (${operation.diaMethod})`;
+    option.textContent = `${operation.key} (${operation.httpMethod})`;
     elements.operation.appendChild(option);
   }
+
+  elements.operation.onchange = () => selectOperation(elements.operation.value);
+}
+
+function selectOperation(key) {
+  const operation = state.operations.find(item => item.key === key);
+  if (!operation) {
+    clearOperationForm();
+    return;
+  }
+
+  elements.operationOriginalKey.value = operation.key;
+  elements.operationKey.value = operation.key;
+  elements.operationMethod.value = operation.httpMethod;
+  elements.operationPath.value = operation.path;
+  elements.operationHeadersJson.value = operation.headersJson || '';
+  elements.operationResultJsonPath.value = operation.resultJsonPath || '';
+  elements.operationBodyTemplate.value = operation.requestBodyTemplate || '';
+  elements.deleteOperationButton.disabled = false;
+  elements.operation.value = operation.key;
+}
+
+function clearOperationForm() {
+  elements.operationForm.reset();
+  elements.operationOriginalKey.value = '';
+  elements.operationMethod.value = 'POST';
+  elements.deleteOperationButton.disabled = true;
 }
 
 function selectProfile(id) {
@@ -122,7 +169,10 @@ function selectProfile(id) {
   elements.profileId.value = profile.id;
   elements.name.value = profile.name;
   elements.baseUrl.value = profile.baseUrl;
-  elements.loginPath.value = profile.loginPath;
+  elements.loginPath.value = profile.loginPath || '';
+  elements.loginBodyTemplate.value = profile.loginBodyTemplate || '';
+  elements.sessionIdJsonPath.value = profile.sessionIdJsonPath || '';
+  elements.defaultHeadersJson.value = profile.defaultHeadersJson || '';
   elements.username.value = profile.username;
   elements.language.value = profile.language;
   elements.password.value = profile.password;
@@ -143,6 +193,9 @@ function clearForm() {
   elements.profileId.value = '';
   elements.baseUrl.value = '';
   elements.loginPath.value = '';
+  elements.loginBodyTemplate.value = '';
+  elements.sessionIdJsonPath.value = '';
+  elements.defaultHeadersJson.value = '';
   elements.language.value = 'tr';
   elements.disconnectSameUser.checked = true;
   elements.formTitle.textContent = 'Yeni Profil';
@@ -162,6 +215,9 @@ async function saveProfile(event) {
     firmaKodu: Number(elements.firmaKodu.value),
     donemKodu: Number(elements.donemKodu.value),
     loginPath: elements.loginPath.value.trim(),
+    loginBodyTemplate: elements.loginBodyTemplate.value.trim(),
+    sessionIdJsonPath: elements.sessionIdJsonPath.value.trim(),
+    defaultHeadersJson: elements.defaultHeadersJson.value.trim(),
     baseUrl: elements.baseUrl.value.trim(),
     language: elements.language.value.trim() || 'tr',
     disconnectSameUser: elements.disconnectSameUser.checked
@@ -212,7 +268,7 @@ async function loginProfile() {
 
   elements.resultBox.textContent = 'Login deneniyor...';
   try {
-    const result = await api(`/api/dia/profiles/${id}/login`, { method: 'POST' });
+    const result = await api(`/api/integrations/profiles/${id}/login`, { method: 'POST' });
     elements.resultBox.textContent = JSON.stringify(maskSession(result), null, 2);
     showAlert('Login testi başarılı.', 'success');
     await loadAll();
@@ -238,23 +294,76 @@ async function runOperation() {
     }
   }
 
+  let params = null;
+  if (elements.params.value.trim()) {
+    try {
+      params = JSON.parse(elements.params.value);
+    } catch {
+      showAlert('Params JSON geçerli değil.', 'warning');
+      return;
+    }
+  }
+
   const payload = {
     forceLogin: elements.forceLogin.checked,
     saveToSqlServer: elements.saveToSqlServer.checked,
     limit: Number(elements.limit.value || 20),
     offset: Number(elements.offset.value || 0),
-    filters
+    filters,
+    params
   };
 
   elements.resultBox.textContent = 'Operasyon çalışıyor...';
   try {
-    const result = await api(`/api/dia/profiles/${id}/operations/${elements.operation.value}`, {
+    const result = await api(`/api/integrations/profiles/${id}/operations/${elements.operation.value}`, {
       method: 'POST',
       body: JSON.stringify(payload)
     });
     elements.resultBox.textContent = JSON.stringify(result, null, 2);
   } catch (error) {
     elements.resultBox.textContent = error.message;
+    showAlert(error.message, 'danger');
+  }
+}
+
+async function saveOperation(event) {
+  event.preventDefault();
+
+  const originalKey = elements.operationOriginalKey.value;
+  const payload = {
+    key: elements.operationKey.value.trim(),
+    httpMethod: elements.operationMethod.value,
+    path: elements.operationPath.value.trim(),
+    headersJson: elements.operationHeadersJson.value.trim(),
+    resultJsonPath: elements.operationResultJsonPath.value.trim(),
+    requestBodyTemplate: elements.operationBodyTemplate.value.trim()
+  };
+
+  try {
+    const saved = await api(originalKey ? `/api/integrations/operations/${encodeURIComponent(originalKey)}` : '/api/integrations/operations', {
+      method: originalKey ? 'PUT' : 'POST',
+      body: JSON.stringify(payload)
+    });
+    showAlert('Endpoint kaydedildi.', 'success');
+    await loadAll();
+    selectOperation(saved.key);
+  } catch (error) {
+    showAlert(error.message, 'danger');
+  }
+}
+
+async function deleteOperation() {
+  const key = elements.operationOriginalKey.value;
+  if (!key || !confirm('Endpoint silinsin mi?')) {
+    return;
+  }
+
+  try {
+    await api(`/api/integrations/operations/${encodeURIComponent(key)}`, { method: 'DELETE' });
+    showAlert('Endpoint silindi.', 'success');
+    clearOperationForm();
+    await loadAll();
+  } catch (error) {
     showAlert(error.message, 'danger');
   }
 }
