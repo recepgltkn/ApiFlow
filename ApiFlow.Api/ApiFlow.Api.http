@@ -1,0 +1,34 @@
+@ApiFlow.Api_HostAddress = http://localhost:5085
+
+GET {{ApiFlow.Api_HostAddress}}/api/profiles
+Accept: application/json
+
+###
+
+POST {{ApiFlow.Api_HostAddress}}/api/profiles
+Content-Type: application/json
+
+{
+  "name": "seis",
+  "username": "online",
+  "password": "change-me",
+  "apiKey": "change-me",
+  "firmaKodu": 1,
+  "donemKodu": 6
+}
+
+###
+
+GET {{ApiFlow.Api_HostAddress}}/api/dia/operations
+Accept: application/json
+
+###
+
+POST {{ApiFlow.Api_HostAddress}}/api/dia/profiles/1/operations/satis-faturalari
+Content-Type: application/json
+
+{
+  "forceLogin": true,
+  "limit": 100,
+  "offset": 0
+}
