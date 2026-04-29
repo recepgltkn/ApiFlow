@@ -38,3 +38,7 @@ yarn-error.log*
 # User-specific files
 *.swp
 *~
+
+*.zip   
+
+publish/

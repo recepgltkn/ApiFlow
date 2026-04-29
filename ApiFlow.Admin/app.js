@@ -1,4 +1,4 @@
-const API_BASE_URL = 'http://localhost:5085';
+const API_BASE_URL = window.APIFLOW_API_BASE_URL ?? window.location.origin;
 
 const state = {
   profiles: [],
@@ -36,6 +36,7 @@ const elements = {
   loginButton: document.querySelector('#loginButton'),
   newProfileButton: document.querySelector('#newProfileButton'),
   refreshButton: document.querySelector('#refreshButton'),
+  swaggerLink: document.querySelector('#swaggerLink'),
   sqlProfileCount: document.querySelector('#sqlProfileCount'),
   sqlProfileList: document.querySelector('#sqlProfileList'),
   sqlProfileForm: document.querySelector('#sqlProfileForm'),
@@ -91,6 +92,7 @@ const elements = {
 document.addEventListener('DOMContentLoaded', init);
 
 function init() {
+  elements.swaggerLink.href = `${API_BASE_URL}/swagger`;
   for (const button of elements.viewButtons) {
     button.addEventListener('click', () => showView(button.dataset.viewTarget));
   }
