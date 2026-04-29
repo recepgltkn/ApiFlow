@@ -4,225 +4,393 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>ApiFlow</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
   <link href="/styles.css" rel="stylesheet">
 </head>
 <body>
-  <nav class="navbar navbar-expand-lg border-bottom bg-white">
+  <nav class="navbar navbar-expand-lg border-bottom bg-white sticky-top">
     <div class="container-fluid">
       <span class="navbar-brand fw-semibold">ApiFlow</span>
       <div class="d-flex gap-2">
         <button id="refreshButton" class="btn btn-outline-secondary btn-sm" type="button" title="Yenile">
           <i class="bi bi-arrow-clockwise"></i>
         </button>
-        <a class="btn btn-outline-secondary btn-sm" href="http://localhost:5085/openapi/v1.json" target="_blank" rel="noreferrer">
-          OpenAPI
+        <a class="btn btn-outline-secondary btn-sm" href="http://localhost:5085/swagger" target="_blank" rel="noreferrer">
+          <i class="bi bi-braces"></i> Swagger
         </a>
       </div>
     </div>
   </nav>
 
-  <main class="container-fluid py-4">
-    <div id="alertHost"></div>
+  <main class="app-shell">
+    <aside class="sidebar">
+      <div class="sidebar-title">Menü</div>
+      <button class="nav-link active" type="button" data-view-target="profilesView">
+        <i class="bi bi-hdd-network"></i>
+        Profiller
+      </button>
+      <button class="nav-link" type="button" data-view-target="endpointsView">
+        <i class="bi bi-diagram-3"></i>
+        Endpointler
+      </button>
+      <button class="nav-link" type="button" data-view-target="sqlProfilesView">
+        <i class="bi bi-database"></i>
+        SQL Profilleri
+      </button>
+      <button class="nav-link" type="button" data-view-target="testView">
+        <i class="bi bi-play-circle"></i>
+        Veri Testi
+      </button>
+    </aside>
 
-    <div class="row g-4">
-      <section class="col-12 col-xl-4">
-        <div class="panel">
-          <div class="panel-header">
-            <h1>Profiller</h1>
-            <span id="profileCount" class="badge text-bg-secondary">0</span>
+    <section class="content">
+      <div id="alertHost"></div>
+
+      <section id="profilesView" class="app-view active">
+        <div class="row g-4">
+          <div class="col-12 col-xl-4">
+            <div class="card">
+              <div class="card-header d-flex align-items-center justify-content-between">
+                <h1 class="h6 mb-0">Profiller</h1>
+                <span id="profileCount" class="badge text-bg-secondary">0</span>
+              </div>
+              <div class="card-body">
+                <div id="profileList" class="profile-list"></div>
+              </div>
+            </div>
           </div>
-          <div id="profileList" class="profile-list"></div>
+
+          <div class="col-12 col-xl-8">
+            <div class="card">
+              <div class="card-header d-flex align-items-center justify-content-between">
+                <h2 id="formTitle" class="h6 mb-0">Yeni Profil</h2>
+                <button id="newProfileButton" class="btn btn-outline-primary btn-sm" type="button">
+                  <i class="bi bi-plus-lg"></i> Yeni
+                </button>
+              </div>
+              <div class="card-body">
+                <form id="profileForm" class="row g-3">
+                  <input id="profileId" type="hidden">
+
+                  <div class="col-md-6">
+                    <label class="form-label" for="name">Profil Adı</label>
+                    <input id="name" class="form-control" autocomplete="off" required>
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label" for="baseUrl">Base URL</label>
+                    <input id="baseUrl" class="form-control" placeholder="https://tenant.example.com" required>
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label" for="loginPath">Login Endpoint</label>
+                    <input id="loginPath" class="form-control" autocomplete="off" placeholder="/auth/login">
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label" for="sessionIdJsonPath">Token JSON Yolu</label>
+                    <input id="sessionIdJsonPath" class="form-control" autocomplete="off" placeholder="access_token">
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label" for="username">Kullanıcı</label>
+                    <input id="username" class="form-control" autocomplete="off" required>
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label" for="password">Parola</label>
+                    <input id="password" class="form-control" autocomplete="off" required>
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label" for="apiKey">API Key</label>
+                    <input id="apiKey" class="form-control" autocomplete="off" required>
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label" for="language">Dil</label>
+                    <input id="language" class="form-control" value="tr" maxlength="20">
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label" for="firmaKodu">Firma Kodu</label>
+                    <input id="firmaKodu" class="form-control" type="number" min="0" required>
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label" for="donemKodu">Dönem Kodu</label>
+                    <input id="donemKodu" class="form-control" type="number" min="0" required>
+                  </div>
+                  <div class="col-md-4 d-flex align-items-end">
+                    <div class="form-check form-switch mb-2">
+                      <input id="disconnectSameUser" class="form-check-input" type="checkbox" checked>
+                      <label class="form-check-label" for="disconnectSameUser">Aynı kullanıcıyı düşür</label>
+                    </div>
+                  </div>
+                  <div class="col-12">
+                    <label class="form-label" for="defaultHeadersJson">Varsayılan Header JSON</label>
+                    <textarea id="defaultHeadersJson" class="form-control code-input json-input" rows="2" spellcheck="false" placeholder='{"Authorization":"Bearer {{sessionId}}"}'></textarea>
+                  </div>
+                  <div class="col-12">
+                    <label class="form-label" for="loginBodyTemplate">Login Body Template JSON</label>
+                    <textarea id="loginBodyTemplate" class="form-control code-input json-input" rows="4" spellcheck="false" placeholder='{"username":"{{username}}","password":"{{password}}","apiKey":"{{apiKey}}"}'></textarea>
+                  </div>
+                  <div class="col-12 d-flex flex-wrap gap-2">
+                    <button class="btn btn-primary" type="submit">
+                      <i class="bi bi-save"></i> Kaydet
+                    </button>
+                    <button id="deleteButton" class="btn btn-outline-danger" type="button" disabled>
+                      <i class="bi bi-trash"></i> Sil
+                    </button>
+                    <button id="loginButton" class="btn btn-outline-success" type="button" disabled>
+                      <i class="bi bi-plug"></i> Login Test
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
-      <section class="col-12 col-xl-8">
-        <div class="panel">
-          <div class="panel-header">
-            <h2 id="formTitle">Yeni Profil</h2>
-            <button id="newProfileButton" class="btn btn-outline-primary btn-sm" type="button">
-              <i class="bi bi-plus-lg"></i> Yeni
-            </button>
-          </div>
-
-          <form id="profileForm" class="row g-3">
-            <input id="profileId" type="hidden">
-
-            <div class="col-md-6">
-              <label class="form-label" for="name">Profil Adı</label>
-              <input id="name" class="form-control" autocomplete="off" required>
-            </div>
-
-            <div class="col-md-6">
-              <label class="form-label" for="baseUrl">Base URL</label>
-              <input id="baseUrl" class="form-control">
-            </div>
-
-            <div class="col-md-6">
-              <label class="form-label" for="loginPath">Login Endpoint</label>
-              <input id="loginPath" class="form-control" autocomplete="off" placeholder="/auth/login">
-            </div>
-
-            <div class="col-md-6">
-              <label class="form-label" for="username">Kullanıcı</label>
-              <input id="username" class="form-control" autocomplete="off" required>
-            </div>
-
-            <div class="col-md-6">
-              <label class="form-label" for="language">Dil</label>
-              <input id="language" class="form-control" value="tr" maxlength="20">
-            </div>
-
-            <div class="col-md-6">
-              <label class="form-label" for="password">Parola</label>
-              <input id="password" class="form-control" autocomplete="off" required>
-            </div>
-
-            <div class="col-md-6">
-              <label class="form-label" for="apiKey">API Key</label>
-              <input id="apiKey" class="form-control" autocomplete="off" required>
-            </div>
-
-            <div class="col-md-6">
-              <label class="form-label" for="sessionIdJsonPath">Token JSON Yolu</label>
-              <input id="sessionIdJsonPath" class="form-control" autocomplete="off" placeholder="access_token">
-            </div>
-
-            <div class="col-md-6">
-              <label class="form-label" for="defaultHeadersJson">Varsayılan Header JSON</label>
-              <textarea id="defaultHeadersJson" class="form-control code-input" rows="2" placeholder='{"Authorization":"Bearer {{sessionId}}"}'></textarea>
-            </div>
-
-            <div class="col-12">
-              <label class="form-label" for="loginBodyTemplate">Login Body Template JSON</label>
-              <textarea id="loginBodyTemplate" class="form-control code-input" rows="4" placeholder='{"username":"{{username}}","password":"{{password}}","apiKey":"{{apiKey}}"}'></textarea>
-            </div>
-
-            <div class="col-md-4">
-              <label class="form-label" for="firmaKodu">Firma Kodu</label>
-              <input id="firmaKodu" class="form-control" type="number" min="0" required>
-            </div>
-
-            <div class="col-md-4">
-              <label class="form-label" for="donemKodu">Dönem Kodu</label>
-              <input id="donemKodu" class="form-control" type="number" min="0" required>
-            </div>
-
-            <div class="col-md-4 d-flex align-items-end">
-              <div class="form-check form-switch mb-2">
-                <input id="disconnectSameUser" class="form-check-input" type="checkbox" checked>
-                <label class="form-check-label" for="disconnectSameUser">Aynı kullanıcıyı düşür</label>
+      <section id="endpointsView" class="app-view">
+        <div class="card mb-4">
+          <div class="card-body">
+            <div class="row g-3 align-items-end">
+              <div class="col-md-6 col-xl-4">
+                <label class="form-label" for="endpointProfileFilter">Profil</label>
+                <select id="endpointProfileFilter" class="form-select"></select>
               </div>
             </div>
-
-            <div class="col-12 d-flex flex-wrap gap-2">
-              <button class="btn btn-primary" type="submit">
-                <i class="bi bi-save"></i> Kaydet
-              </button>
-              <button id="deleteButton" class="btn btn-outline-danger" type="button" disabled>
-                <i class="bi bi-trash"></i> Sil
-              </button>
-              <button id="loginButton" class="btn btn-outline-success" type="button" disabled>
-                <i class="bi bi-plug"></i> Login Test
-              </button>
-            </div>
-          </form>
+          </div>
         </div>
 
-        <div class="panel mt-4">
-          <div class="panel-header">
-            <h2>Endpointler</h2>
-            <button id="newOperationButton" class="btn btn-outline-primary btn-sm" type="button">
-              <i class="bi bi-plus-lg"></i> Yeni
-            </button>
+        <div class="row g-4">
+          <div class="col-12 col-xl-4">
+            <div class="card">
+              <div class="card-header d-flex align-items-center justify-content-between">
+                <h1 class="h6 mb-0">Endpointler</h1>
+                <span id="operationCount" class="badge text-bg-secondary">0</span>
+              </div>
+              <div class="card-body">
+                <div id="operationList" class="operation-list"></div>
+              </div>
+            </div>
           </div>
-          <form id="operationForm" class="row g-3">
-            <input id="operationOriginalKey" type="hidden">
-            <div class="col-md-4">
-              <label class="form-label" for="operationKey">Endpoint Anahtarı</label>
-              <input id="operationKey" class="form-control" autocomplete="off" placeholder="stok-listesi" required>
-            </div>
-            <div class="col-md-2">
-              <label class="form-label" for="operationMethod">Metot</label>
-              <select id="operationMethod" class="form-select">
-                <option>GET</option>
-                <option selected>POST</option>
-                <option>PUT</option>
-                <option>PATCH</option>
-                <option>DELETE</option>
-              </select>
-            </div>
-            <div class="col-md-6">
-              <label class="form-label" for="operationPath">Endpoint Path</label>
-              <input id="operationPath" class="form-control" autocomplete="off" placeholder="/api/items" required>
-            </div>
-            <div class="col-md-6">
-              <label class="form-label" for="operationHeadersJson">Header JSON</label>
-              <textarea id="operationHeadersJson" class="form-control code-input" rows="2" placeholder='{"x-api-key":"{{apiKey}}"}'></textarea>
-            </div>
-            <div class="col-md-6">
-              <label class="form-label" for="operationResultJsonPath">Sonuç JSON Yolu</label>
-              <input id="operationResultJsonPath" class="form-control" autocomplete="off" placeholder="result">
-            </div>
-            <div class="col-12">
-              <label class="form-label" for="operationBodyTemplate">Body Template JSON</label>
-              <textarea id="operationBodyTemplate" class="form-control code-input" rows="4" placeholder='{"limit":{{limit}},"offset":{{offset}},"filters":{{filters}}}'></textarea>
-            </div>
-            <div class="col-12 d-flex flex-wrap gap-2">
-              <button class="btn btn-primary" type="submit">
-                <i class="bi bi-save"></i> Endpoint Kaydet
-              </button>
-              <button id="deleteOperationButton" class="btn btn-outline-danger" type="button" disabled>
-                <i class="bi bi-trash"></i> Endpoint Sil
-              </button>
-            </div>
-          </form>
-        </div>
 
-        <div class="panel mt-4">
-          <div class="panel-header">
-            <h2>Veri Çekme Testi</h2>
-          </div>
-          <div class="row g-3 align-items-end">
-            <div class="col-md-6">
-              <label class="form-label" for="operation">Operasyon</label>
-              <select id="operation" class="form-select"></select>
-            </div>
-            <div class="col-md-3">
-              <label class="form-label" for="limit">Limit</label>
-              <input id="limit" class="form-control" type="number" value="20" min="1">
-            </div>
-            <div class="col-md-3">
-              <label class="form-label" for="offset">Offset</label>
-              <input id="offset" class="form-control" type="number" value="0" min="0">
-            </div>
-            <div class="col-12">
-              <label class="form-label" for="filters">Filters JSON</label>
-              <textarea id="filters" class="form-control code-input" rows="3" placeholder='[{"field":"durum","operator":"=","value":"A"}]'></textarea>
-            </div>
-            <div class="col-12">
-              <label class="form-label" for="params">Params JSON</label>
-              <textarea id="params" class="form-control code-input" rows="3" placeholder='{"_key":123}'></textarea>
-            </div>
-            <div class="col-12 d-flex flex-wrap gap-2">
-              <button id="runOperationButton" class="btn btn-dark" type="button" disabled>
-                <i class="bi bi-play-fill"></i> Çalıştır
-              </button>
-              <div class="form-check form-switch d-flex align-items-center gap-2">
-                <input id="forceLogin" class="form-check-input" type="checkbox" checked>
-                <label class="form-check-label" for="forceLogin">Önce login ol</label>
+          <div class="col-12 col-xl-8">
+            <div class="card">
+              <div class="card-header d-flex align-items-center justify-content-between">
+                <h2 id="operationFormTitle" class="h6 mb-0">Yeni Endpoint</h2>
+                <button id="newOperationButton" class="btn btn-outline-primary btn-sm" type="button">
+                  <i class="bi bi-plus-lg"></i> Yeni
+                </button>
               </div>
-              <div class="form-check form-switch d-flex align-items-center gap-2">
-                <input id="saveToSqlServer" class="form-check-input" type="checkbox">
-                <label class="form-check-label" for="saveToSqlServer">MSSQL'e yaz</label>
+              <div class="card-body">
+                <form id="operationForm" class="row g-3">
+                  <input id="operationOriginalKey" type="hidden">
+                  <div class="col-md-4">
+                    <label class="form-label" for="operationProfileId">Profil</label>
+                    <select id="operationProfileId" class="form-select" required></select>
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label" for="operationKey">Endpoint Anahtarı</label>
+                    <input id="operationKey" class="form-control" autocomplete="off" placeholder="stok-listesi" required>
+                  </div>
+                  <div class="col-md-2">
+                    <label class="form-label" for="operationMethod">Metot</label>
+                    <select id="operationMethod" class="form-select">
+                      <option>GET</option>
+                      <option selected>POST</option>
+                      <option>PUT</option>
+                      <option>PATCH</option>
+                      <option>DELETE</option>
+                    </select>
+                  </div>
+                  <div class="col-md-2">
+                    <label class="form-label" for="operationPath">Endpoint Path</label>
+                    <input id="operationPath" class="form-control" autocomplete="off" placeholder="/api/items" required>
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label" for="operationHeadersJson">Header JSON</label>
+                    <textarea id="operationHeadersJson" class="form-control code-input json-input" rows="3" spellcheck="false" placeholder='{"x-api-key":"{{apiKey}}"}'></textarea>
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label" for="operationResultJsonPath">Sonuç JSON Yolu</label>
+                    <input id="operationResultJsonPath" class="form-control" autocomplete="off" placeholder="result">
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label" for="operationTargetTableName">Hedef MSSQL tablo adı</label>
+                    <input id="operationTargetTableName" class="form-control code-input" autocomplete="off" placeholder="DIA_TBL_SCF_SATIS_FATURA_LISTELE">
+                  </div>
+                  <div class="col-md-6 d-flex flex-wrap gap-3 align-items-end">
+                    <div class="form-check form-switch mb-2">
+                      <input id="operationCreateTableIfMissing" class="form-check-input" type="checkbox" checked>
+                      <label class="form-check-label" for="operationCreateTableIfMissing">Tablo yoksa oluştur</label>
+                    </div>
+                    <div class="form-check form-switch mb-2">
+                      <input id="operationAddMissingColumns" class="form-check-input" type="checkbox" checked>
+                      <label class="form-check-label" for="operationAddMissingColumns">Eksik kolonları ekle</label>
+                    </div>
+                    <div class="form-check form-switch mb-2">
+                      <input id="operationClearTableBeforeImport" class="form-check-input" type="checkbox">
+                      <label class="form-check-label" for="operationClearTableBeforeImport">İçe aktarma öncesi tabloyu temizle</label>
+                    </div>
+                  </div>
+                  <div class="col-12">
+                    <label class="form-label" for="operationBodyTemplate">Body Template JSON</label>
+                    <textarea id="operationBodyTemplate" class="form-control code-input json-input" rows="8" spellcheck="false" placeholder='{"limit":{{limit}},"offset":{{offset}},"filters":{{filters}}}'></textarea>
+                  </div>
+                  <div class="col-12 d-flex flex-wrap gap-2">
+                    <button class="btn btn-primary" type="submit">
+                      <i class="bi bi-save"></i> Endpoint Kaydet
+                    </button>
+                    <button id="deleteOperationButton" class="btn btn-outline-danger" type="button" disabled>
+                      <i class="bi bi-trash"></i> Endpoint Sil
+                    </button>
+                  </div>
+                </form>
               </div>
             </div>
           </div>
-          <pre id="resultBox" class="result-box mt-3">{}</pre>
         </div>
       </section>
-    </div>
+
+      <section id="sqlProfilesView" class="app-view">
+        <div class="row g-4">
+          <div class="col-12 col-xl-4">
+            <div class="card">
+              <div class="card-header d-flex align-items-center justify-content-between">
+                <h1 class="h6 mb-0">SQL Profilleri</h1>
+                <span id="sqlProfileCount" class="badge text-bg-secondary">0</span>
+              </div>
+              <div class="card-body">
+                <div id="sqlProfileList" class="profile-list"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-12 col-xl-8">
+            <div class="card">
+              <div class="card-header d-flex align-items-center justify-content-between">
+                <h2 id="sqlProfileFormTitle" class="h6 mb-0">Yeni SQL Profili</h2>
+                <button id="newSqlProfileButton" class="btn btn-outline-primary btn-sm" type="button">
+                  <i class="bi bi-plus-lg"></i> Yeni
+                </button>
+              </div>
+              <div class="card-body">
+                <form id="sqlProfileForm" class="row g-3">
+                  <input id="sqlProfileId" type="hidden">
+                  <div class="col-md-6">
+                    <label class="form-label" for="sqlProfileSelect">Profil seçimi</label>
+                    <select id="sqlProfileSelect" class="form-select"></select>
+                    <div class="form-text">Yeni kayıt için önce Yeni profil seçin.</div>
+                  </div>
+                  <div class="col-md-3">
+                    <label class="form-label" for="sqlProfileKey">Profil anahtarı</label>
+                    <input id="sqlProfileKey" class="form-control" autocomplete="off" placeholder="seisdia-ana" required>
+                  </div>
+                  <div class="col-md-3">
+                    <label class="form-label" for="sqlProfileName">Profil Adı</label>
+                    <input id="sqlProfileName" class="form-control" autocomplete="off" required>
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label" for="sqlHost">SQL Server / Host</label>
+                    <input id="sqlHost" class="form-control" placeholder="SEISSRV\\KALE1123" required>
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label" for="sqlDatabaseName">Database</label>
+                    <input id="sqlDatabaseName" class="form-control" placeholder="SEISDIA" required>
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label" for="sqlUsername">Kullanıcı</label>
+                    <input id="sqlUsername" class="form-control" autocomplete="off" required>
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label" for="sqlPassword">Şifre</label>
+                    <input id="sqlPassword" class="form-control" type="password" autocomplete="off" required>
+                  </div>
+                  <div class="col-12">
+                    <label class="form-label" for="sqlApplicationName">Application Name</label>
+                    <input id="sqlApplicationName" class="form-control" autocomplete="off">
+                  </div>
+                  <input id="sqlPort" type="hidden">
+                  <input id="sqlInstanceName" type="hidden">
+                  <input id="sqlSchemaName" type="hidden" value="dbo">
+                  <div class="col-12 d-flex flex-wrap gap-3">
+                    <div class="form-check form-switch mb-0">
+                      <input id="sqlTrustServerCertificate" class="form-check-input" type="checkbox" checked>
+                      <label class="form-check-label" for="sqlTrustServerCertificate">Sertifikaya güven</label>
+                    </div>
+                    <div class="form-check form-switch mb-0">
+                      <input id="sqlEncrypt" class="form-check-input" type="checkbox">
+                      <label class="form-check-label" for="sqlEncrypt">Encrypt</label>
+                    </div>
+                  </div>
+                  <div class="col-12 d-flex flex-wrap gap-2">
+                    <button class="btn btn-primary" type="submit">
+                      <i class="bi bi-save"></i> Kaydet
+                    </button>
+                    <button id="deleteSqlProfileButton" class="btn btn-outline-danger" type="button" disabled>
+                      <i class="bi bi-trash"></i> Sil
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="testView" class="app-view">
+        <div class="card">
+          <div class="card-header">
+            <h1 class="h6 mb-0">Veri Çekme Testi</h1>
+          </div>
+          <div class="card-body">
+            <div class="row g-3 align-items-end">
+              <div class="col-md-6">
+                <label class="form-label" for="testProfileId">API Profili</label>
+                <select id="testProfileId" class="form-select"></select>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label" for="operation">Operasyon</label>
+                <select id="operation" class="form-select"></select>
+              </div>
+              <div class="col-md-3">
+                <label class="form-label" for="limit">Limit</label>
+                <input id="limit" class="form-control" type="number" value="20" min="1">
+              </div>
+              <div class="col-md-3">
+                <label class="form-label" for="offset">Offset</label>
+                <input id="offset" class="form-control" type="number" value="0" min="0">
+              </div>
+              <div class="col-12">
+                <label class="form-label" for="filters">Filters JSON</label>
+                <textarea id="filters" class="form-control code-input json-input" rows="3" spellcheck="false" placeholder='[{"field":"durum","operator":"=","value":"A"}]'></textarea>
+              </div>
+              <div class="col-12">
+                <label class="form-label" for="params">Params JSON</label>
+                <textarea id="params" class="form-control code-input json-input" rows="3" spellcheck="false" placeholder='{"_key":123}'></textarea>
+              </div>
+              <div class="col-12 d-flex flex-wrap gap-3 align-items-center">
+                <button id="runOperationButton" class="btn btn-dark" type="button" disabled>
+                  <i class="bi bi-play-fill"></i> Çalıştır
+                </button>
+                <div class="form-check form-switch mb-0">
+                  <input id="forceLogin" class="form-check-input" type="checkbox" checked>
+                  <label class="form-check-label" for="forceLogin">Önce login ol</label>
+                </div>
+                <div class="form-check form-switch mb-0">
+                  <input id="saveToSqlServer" class="form-check-input" type="checkbox">
+                  <label class="form-check-label" for="saveToSqlServer">MSSQL'e yaz</label>
+                </div>
+                <div class="test-sql-profile">
+                  <label class="form-label mb-1" for="testSqlProfileId">SQL Profili</label>
+                  <select id="testSqlProfileId" class="form-select form-select-sm"></select>
+                </div>
+              </div>
+            </div>
+            <pre id="resultBox" class="result-box mt-3">{}</pre>
+          </div>
+        </div>
+      </section>
+    </section>
   </main>
 
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script src="/app.js"></script>
 </body>
 </html>

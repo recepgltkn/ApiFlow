@@ -15,10 +15,17 @@ public sealed class IntegrationsController(
     SqlServerPayloadWriter sqlServerPayloadWriter) : ControllerBase
 {
     [HttpGet("operations")]
-    public async Task<ActionResult<IReadOnlyCollection<ApiOperationInfo>>> GetOperations(CancellationToken cancellationToken)
+    public async Task<ActionResult<IReadOnlyCollection<ApiOperationInfo>>> GetOperations(
+        [FromQuery] int? profileId,
+        CancellationToken cancellationToken)
     {
-        var operations = await dbContext.ApiEndpoints
-            .AsNoTracking()
+        var query = dbContext.ApiEndpoints.AsNoTracking();
+        if (profileId is not null)
+        {
+            query = query.Where(endpoint => endpoint.ProfileId == profileId);
+        }
+
+        var operations = await query
             .OrderBy(endpoint => endpoint.Key)
             .Select(endpoint => ToOperationInfo(endpoint))
             .ToArrayAsync(cancellationToken);
@@ -30,19 +37,29 @@ public sealed class IntegrationsController(
     public async Task<ActionResult<ApiOperationInfo>> CreateOperation(ApiEndpointRequest request, CancellationToken cancellationToken)
     {
         var key = request.Key.Trim();
-        if (await dbContext.ApiEndpoints.AnyAsync(endpoint => endpoint.Key == key, cancellationToken))
+        if (!await dbContext.ApiProfiles.AnyAsync(profile => profile.Id == request.ProfileId, cancellationToken))
+        {
+            return BadRequest(new { message = "Endpoint için geçerli bir profil seçilmeli." });
+        }
+
+        if (await dbContext.ApiEndpoints.AnyAsync(endpoint => endpoint.ProfileId == request.ProfileId && endpoint.Key == key, cancellationToken))
         {
             return Conflict(new { message = $"'{key}' anahtarlı endpoint zaten var." });
         }
 
         var endpoint = new ApiEndpoint
         {
+            ProfileId = request.ProfileId,
             Key = key,
             HttpMethod = NormalizeMethod(request.HttpMethod),
             Path = request.Path.Trim(),
             RequestBodyTemplate = NormalizeOptional(request.RequestBodyTemplate),
             HeadersJson = NormalizeOptional(request.HeadersJson),
-            ResultJsonPath = NormalizeOptional(request.ResultJsonPath)
+            ResultJsonPath = NormalizeOptional(request.ResultJsonPath),
+            TargetTableName = NormalizeOptional(request.TargetTableName),
+            CreateTableIfMissing = request.CreateTableIfMissing,
+            AddMissingColumns = request.AddMissingColumns,
+            ClearTableBeforeImport = request.ClearTableBeforeImport
         };
 
         dbContext.ApiEndpoints.Add(endpoint);
@@ -63,17 +80,27 @@ public sealed class IntegrationsController(
         }
 
         var key = request.Key.Trim();
-        if (await dbContext.ApiEndpoints.AnyAsync(candidate => candidate.Id != endpoint.Id && candidate.Key == key, cancellationToken))
+        if (!await dbContext.ApiProfiles.AnyAsync(profile => profile.Id == request.ProfileId, cancellationToken))
+        {
+            return BadRequest(new { message = "Endpoint için geçerli bir profil seçilmeli." });
+        }
+
+        if (await dbContext.ApiEndpoints.AnyAsync(candidate => candidate.Id != endpoint.Id && candidate.ProfileId == request.ProfileId && candidate.Key == key, cancellationToken))
         {
             return Conflict(new { message = $"'{key}' anahtarlı endpoint zaten var." });
         }
 
+        endpoint.ProfileId = request.ProfileId;
         endpoint.Key = key;
         endpoint.HttpMethod = NormalizeMethod(request.HttpMethod);
         endpoint.Path = request.Path.Trim();
         endpoint.RequestBodyTemplate = NormalizeOptional(request.RequestBodyTemplate);
         endpoint.HeadersJson = NormalizeOptional(request.HeadersJson);
         endpoint.ResultJsonPath = NormalizeOptional(request.ResultJsonPath);
+        endpoint.TargetTableName = NormalizeOptional(request.TargetTableName);
+        endpoint.CreateTableIfMissing = request.CreateTableIfMissing;
+        endpoint.AddMissingColumns = request.AddMissingColumns;
+        endpoint.ClearTableBeforeImport = request.ClearTableBeforeImport;
         await dbContext.SaveChangesAsync(cancellationToken);
 
         return ToOperationInfo(endpoint);
@@ -125,12 +152,13 @@ public sealed class IntegrationsController(
     {
         var operation = await dbContext.ApiEndpoints
             .AsNoTracking()
-            .FirstOrDefaultAsync(endpoint => endpoint.Key == operationKey, cancellationToken);
+            .FirstOrDefaultAsync(endpoint => endpoint.ProfileId == profileId && endpoint.Key == operationKey, cancellationToken);
 
         if (operation is null)
         {
             var availableOperations = await dbContext.ApiEndpoints
                 .AsNoTracking()
+                .Where(endpoint => endpoint.ProfileId == profileId)
                 .OrderBy(endpoint => endpoint.Key)
                 .Select(endpoint => endpoint.Key)
                 .ToArrayAsync(cancellationToken);
@@ -191,9 +219,25 @@ public sealed class IntegrationsController(
             result = await apiClient.ExecuteAsync(profile, operationInfo, request, sessionId, cancellationToken);
         }
 
-        var savedRows = request.SaveToSqlServer
-            ? await sqlServerPayloadWriter.SaveAsync(profile, operationInfo, result, cancellationToken)
-            : 0;
+        var savedRows = 0;
+        if (request.SaveToSqlServer)
+        {
+            if (request.SqlProfileId is null)
+            {
+                return BadRequest(new { message = "MSSQL'e yazmak için SQL profili seçilmeli." });
+            }
+
+            var sqlProfile = await dbContext.SqlProfiles
+                .AsNoTracking()
+                .FirstOrDefaultAsync(profile => profile.Id == request.SqlProfileId, cancellationToken);
+
+            if (sqlProfile is null)
+            {
+                return BadRequest(new { message = "Seçilen SQL profili bulunamadı." });
+            }
+
+            savedRows = await sqlServerPayloadWriter.SaveAsync(sqlProfile, profile, operationInfo, result, cancellationToken);
+        }
 
         return new ApiExecutionResponse(result, savedRows);
     }
@@ -201,12 +245,17 @@ public sealed class IntegrationsController(
     private static ApiOperationInfo ToOperationInfo(ApiEndpoint endpoint)
     {
         return new ApiOperationInfo(
+            endpoint.ProfileId,
             endpoint.Key,
             endpoint.HttpMethod,
             endpoint.Path,
             endpoint.RequestBodyTemplate,
             endpoint.HeadersJson,
-            endpoint.ResultJsonPath);
+            endpoint.ResultJsonPath,
+            endpoint.TargetTableName,
+            endpoint.CreateTableIfMissing,
+            endpoint.AddMissingColumns,
+            endpoint.ClearTableBeforeImport);
     }
 
     private static string NormalizeMethod(string method)
